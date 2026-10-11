@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gke-hpa-monitor
+  labels:
+    app: gke-hpa-monitor
+spec:
+  # Initial replicas defined. Will be overridden by HPA.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gke-hpa-monitor
+  template:
+    metadata:
+      labels:
+        app: gke-hpa-monitor
+    spec:
+      containers:
+      - name: web-app
+        # Replace 'YOUR_PROJECT_ID' with actual GCP Project ID when pushing to Artifact Registry
+        image: gke-hpa-monitor-image:latest
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 10

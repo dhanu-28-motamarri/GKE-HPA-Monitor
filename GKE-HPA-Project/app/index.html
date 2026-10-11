@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GKE HPA Monitor - Kubernetes Cluster Dashboard</title>
+    <meta name="description" content="Monitoring and observation dashboard for Kubernetes Horizontal Pod Autoscaling on GKE and local clusters.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Subtle Background Ambient Glows -->
+    <div class="background-animation" aria-hidden="true">
+        <div class="circle circle-1"></div>
+        <div class="circle circle-2"></div>
+        <div class="circle circle-3"></div>
+    </div>
+
+    <div class="layout-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar" aria-label="Dashboard Navigation">
+            <div class="sidebar-header">
+                <div class="logo-mark">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-title">GKE HPA Monitor</span>
+                    <span class="logo-subtitle">Cluster Autoscaler</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-group-title">OBSERVABILITY</div>
+                <a href="#overview" class="nav-item active" id="nav-overview">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Dashboard Overview</span>
+                </a>
+                <a href="#pods" class="nav-item" id="nav-pods">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-label">Pod Monitoring</span>
+                </a>
+                <a href="#hpa" class="nav-item" id="nav-hpa">
+                    <span class="nav-icon">⚡</span>
+                    <span class="nav-label">HPA Controller</span>
+                </a>
+                <a href="#metrics" class="nav-item" id="nav-metrics">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-label">Resource Charts</span>
+                </a>
+                <a href="#events" class="nav-item" id="nav-events">
+                    <span class="nav-icon">📜</span>
+                    <span class="nav-label">Scaling Events</span>
+                </a>
+
+                <div class="nav-group-title">CLUSTER OPS</div>
+                <a href="#testing" class="nav-item" id="nav-testing">
+                    <span class="nav-icon">🔥</span>
+                    <span class="nav-label">Workload Testing</span>
+                </a>
+                <a href="#architecture" class="nav-item" id="nav-architecture">
+                    <span class="nav-icon">🏛️</span>
+                    <span class="nav-label">Architecture</span>
+                </a>
+                <a href="#deployment-info" class="nav-item" id="nav-deployment">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-label">Deployment Spec</span>
+                </a>
+                <a href="#concepts" class="nav-item" id="nav-concepts">
+                    <span class="nav-icon">💡</span>
+                    <span class="nav-label">Core Concepts</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="backend-status-card">
+                    <div class="status-indicator-dot" id="sidebar-indicator-dot"></div>
+                    <div class="status-meta">
+                        <span class="status-name" id="sidebar-status-title">Frontend Standalone</span>
+                        <span class="status-hint" id="sidebar-status-hint">API Disconnected</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard Container -->
+        <div class="main-content">
+            <!-- Topbar Header -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle navigation menu">
+                        <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="header-breadcrumb">
+                        <span class="breadcrumb-cluster">Target: GKE Standard / Minikube</span>
+                        <span class="breadcrumb-sep">/</span>
+                        <span class="breadcrumb-current">Production Namespace: default</span>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Sample Data Preview Toggle (Clearly Labeled) -->
+                    <div class="preview-toggle-wrapper" title="Toggle sample data to preview dashboard charts and tables without a live telemetry backend">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sample-mode-toggle" aria-label="Toggle sample data preview mode">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" id="preview-mode-label">Sample Data Mode</span>
+                    </div>
+
+                    <button class="btn-refresh" id="btn-refresh" aria-label="Refresh telemetry data">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                        <span>Refresh</span>
+                    </button>
+
+                    <div class="status-badge" id="app-status">
+                        <span class="pulse-dot"></span>
+                        <span id="app-status-text">Application: Active</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Disconnected / Telemetry Notice Banner -->
+            <div class="telemetry-banner" id="telemetry-banner">
+                <div class="banner-icon">ℹ️</div>
+                <div class="banner-content">
+                    <strong>Cluster Telemetry API: Disconnected (NGINX Static Frontend Mode)</strong>
+                    <p>Browser JavaScript cannot directly query privileged Kubernetes API endpoints without exposing cluster credentials. Metric graphs and pod tables will show empty states until the backend proxy is connected. You can turn on <em>"Sample Data Mode"</em> in the top-right to preview live visualization components.</p>
+                </div>
+                <button class="banner-dismiss" id="banner-dismiss-btn" aria-label="Dismiss banner">&times;</button>
+            </div>
+
+            <!-- Content Area -->
+            <main class="content-body">
+
+                <!-- SECTION 1: DASHBOARD OVERVIEW -->
+                <section class="section-container" id="overview">
+                    <div class="section-header">
+                        <h2>Dashboard Overview</h2>
+                        <span class="section-tag">High-level cluster autoscaling telemetry</span>
+                    </div>
+
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">App Health</span>
+                                <span class="kpi-icon">💚</span>
+                            </div>
+                            <div class="kpi-value text-success" id="kpi-app-health">Healthy</div>
+                            <div class="kpi-subtitle">HTTP 200 via NGINX Pod</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Cluster Connection</span>
+                                <span class="kpi-icon">📡</span>
+                            </div>
+                            <div class="kpi-value" id="kpi-cluster-status">Disconnected</div>
+                            <div class="kpi-subtitle" id="kpi-cluster-detail">No Backend API Feed</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Current Pod Count</span>
+                                <span class="kpi-icon">📦</span>
+                            </div>
+                            <div class="kpi-value" id="kpi-pod-count">2 <span class="kpi-unit">(Spec)</span></div>
+                            <div class="kpi-subtitle" id="kpi-pod-subtitle">Initial replicas provisioned</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Desired Replicas</span>
+                                <span class="kpi-icon">🎯</span>
+                            </div>
+                            <div class="kpi-value" id="kpi-desired-replicas">2</div>
+                            <div class="kpi-subtitle">Calculated by HPA controller</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Min / Max Replicas</span>
+                                <span class="kpi-icon">⚖️</span>
+                            </div>
+                            <div class="kpi-value" id="kpi-min-max">2 / 10</div>
+                            <div class="kpi-subtitle">HPA scaling boundary range</div>
+                        </div>
+
+                        <div class="kpi-card highlight-target">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Target CPU Utilization</span>
+                                <span class="kpi-icon">🔥</span>
+                            </div>
+                            <div class="kpi-value text-accent" id="kpi-target-cpu">50%</div>
+                            <div class="kpi-subtitle">Autoscale trigger threshold</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 2: POD MONITORING TABLE -->
+                <section class="section-container" id="pods">
+                    <div class="section-header">
+                        <h2>Pod Monitoring</h2>
+                        <span class="section-tag">Status and resource footprint of running container replicas</span>
+                    </div>
+
+                    <div class="card table-card">
+                        <div class="table-actions">
+                            <div class="table-title-wrap">
+                                <h3>Managed Workload Pods</h3>
+                                <span class="badge badge-neutral" id="pod-source-badge">Source: Manifest Spec</span>
+                            </div>
+                            <div class="table-legend">
+                                <span class="legend-item"><span class="dot dot-success"></span> Ready</span>
+                                <span class="legend-item"><span class="dot dot-warning"></span> Pending</span>
+                                <span class="legend-item"><span class="dot dot-danger"></span> Error</span>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="pods-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pod Name</th>
+                                        <th>Status</th>
+                                        <th>Readiness</th>
+                                        <th>CPU Usage</th>
+                                        <th>Memory Usage</th>
+                                        <th>Restarts</th>
+                                        <th>Node IP</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pods-tbody">
+                                    <!-- Rendered dynamically by script.js -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Empty State Container when no metrics are connected -->
+                        <div class="table-empty-state" id="pods-empty-state" style="display: none;">
+                            <div class="empty-icon">🔌</div>
+                            <h4>Live Pod Telemetry Unavailable</h4>
+                            <p>Kubernetes metrics require in-cluster API aggregation. Run <code class="code-inline">kubectl get pods -l app=gke-hpa-monitor -o wide</code> in your terminal or enable <strong>Sample Data Mode</strong> in the top header.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 3: HPA MONITORING -->
+                <section class="section-container" id="hpa">
+                    <div class="section-header">
+                        <h2>Horizontal Pod Autoscaler (HPA) Status</h2>
+                        <span class="section-tag">Kubernetes autoscaling controller configuration and active targets</span>
+                    </div>
+
+                    <div class="grid-2-col">
+                        <div class="card">
+                            <h3>HPA Specification & Target</h3>
+                            <div class="spec-list">
+                                <div class="spec-row">
+                                    <span class="spec-label">HPA Resource Name</span>
+                                    <span class="spec-val font-mono">gke-hpa-monitor-hpa</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Target Workload</span>
+                                    <span class="spec-val font-mono">Deployment/gke-hpa-monitor</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">API Version</span>
+                                    <span class="spec-val font-mono">autoscaling/v2</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Min Pod Replicas</span>
+                                    <span class="spec-val font-bold">2</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Max Pod Replicas</span>
+                                    <span class="spec-val font-bold">10</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Average CPU Target</span>
+                                    <span class="spec-val font-bold text-accent">50%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>Active Metric Observation</h3>
+                            <div class="hpa-gauge-block">
+                                <div class="gauge-header">
+                                    <span>Average CPU Utilization</span>
+                                    <span class="gauge-target-label">Target: 50%</span>
+                                </div>
+                                <div class="gauge-bar-wrapper">
+                                    <div class="gauge-bar-track">
+                                        <div class="gauge-bar-target-marker" style="left: 50%;" title="HPA Scale Trigger Threshold: 50%"></div>
+                                        <div class="gauge-bar-fill" id="hpa-gauge-fill" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                                <div class="gauge-numbers">
+                                    <span class="gauge-current" id="hpa-gauge-text">N/A (Telemetry Disconnected)</span>
+                                    <span class="gauge-max">100% Request Max</span>
+                                </div>
+                            </div>
+
+                            <div class="hpa-summary-boxes">
+                                <div class="summary-box">
+                                    <span class="summary-box-title">Current Replicas</span>
+                                    <span class="summary-box-num" id="hpa-current-replicas">2</span>
+                                </div>
+                                <div class="summary-box">
+                                    <span class="summary-box-title">Desired Replicas</span>
+                                    <span class="summary-box-num" id="hpa-desired-replicas">2</span>
+                                </div>
+                                <div class="summary-box">
+                                    <span class="summary-box-title">Autoscale Status</span>
+                                    <span class="badge badge-info" id="hpa-condition-badge">Stabilized</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 4: CPU AND MEMORY CHARTS -->
+                <section class="section-container" id="metrics">
+                    <div class="section-header">
+                        <h2>Resource Utilization Charts</h2>
+                        <span class="section-tag">Historical time-series telemetry for CPU and Memory consumption</span>
+                    </div>
+
+                    <div class="grid-2-col">
+                        <!-- CPU Chart Card -->
+                        <div class="card chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <h3>CPU Utilization History</h3>
+                                    <span class="chart-subtitle">Unit: Average % of CPU Request (100m)</span>
+                                </div>
+                                <span class="chart-badge" id="cpu-chart-source">Empty State</span>
+                            </div>
+                            <div class="chart-canvas-container">
+                                <canvas id="cpuChart" width="500" height="240" aria-label="CPU Utilization Time Series Chart" role="img"></canvas>
+                                <div class="chart-empty-overlay" id="cpu-empty-overlay">
+                                    <div class="overlay-icon">📊</div>
+                                    <div class="overlay-title">No CPU Telemetry Feed Available</div>
+                                    <p>Connect a telemetry backend or enable Sample Data Mode above to render historical trend lines.</p>
+                                </div>
+                            </div>
+                            <div class="chart-legend">
+                                <span class="legend-chip"><span class="legend-color-box cpu-actual"></span> Observed CPU %</span>
+                                <span class="legend-chip"><span class="legend-color-box cpu-target"></span> Target 50% Threshold</span>
+                            </div>
+                        </div>
+
+                        <!-- Memory Chart Card -->
+                        <div class="card chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <h3>Memory Footprint History</h3>
+                                    <span class="chart-subtitle">Unit: Megabytes (MiB) per Pod Instance</span>
+                                </div>
+                                <span class="chart-badge" id="memory-chart-source">Empty State</span>
+                            </div>
+                            <div class="chart-canvas-container">
+                                <canvas id="memoryChart" width="500" height="240" aria-label="Memory Footprint Time Series Chart" role="img"></canvas>
+                                <div class="chart-empty-overlay" id="memory-empty-overlay">
+                                    <div class="overlay-icon">📈</div>
+                                    <div class="overlay-title">No Memory Telemetry Feed Available</div>
+                                    <p>Metrics require the Kubernetes Metrics Server. Toggle Sample Data Mode to inspect chart rendering.</p>
+                                </div>
+                            </div>
+                            <div class="chart-legend">
+                                <span class="legend-chip"><span class="legend-color-box mem-actual"></span> Observed Memory (MiB)</span>
+                                <span class="legend-chip"><span class="legend-color-box mem-limit"></span> Limit (256 MiB)</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 5: SCALING EVENTS -->
+                <section class="section-container" id="events">
+                    <div class="section-header">
+                        <h2>Scaling Events Log</h2>
+                        <span class="section-tag">Record of autoscaler actions and pod replica modifications</span>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-actions">
+                            <div class="table-title-wrap">
+                                <h3>Autoscaling Timeline</h3>
+                                <span class="badge badge-neutral" id="events-source-badge">Real Events: Awaiting API</span>
+                            </div>
+                            <span class="table-note">Inspect directly with <code class="code-inline">kubectl describe hpa gke-hpa-monitor-hpa</code></span>
+                        </div>
+
+                        <div class="timeline-container" id="events-timeline">
+                            <!-- Populated by script.js -->
+                        </div>
+
+                        <div class="table-empty-state" id="events-empty-state" style="display: none;">
+                            <div class="empty-icon">📜</div>
+                            <h4>No Telemetry Events Stream</h4>
+                            <p>Autoscaler scale-up/scale-down events stream from Kubernetes events API. Use Sample Data Mode to view representative scaling events.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 6: WORKLOAD TESTING -->
+                <section class="section-container" id="testing">
+                    <div class="section-header">
+                        <h2>Workload & Load Testing</h2>
+                        <span class="section-tag">Trigger CPU utilization spikes to validate autoscaling behavior</span>
+                    </div>
+
+                    <div class="card">
+                        <div class="security-callout">
+                            <div class="callout-icon">🔒</div>
+                            <div class="callout-text">
+                                <strong>Architectural Security Notice: Client-Side Shell Isolation</strong>
+                                <p>In accordance with secure cloud architecture best practices, browser JavaScript has no shell access or direct privileged cluster connectivity. Load generation can only be commanded via an authenticated backend proxy or executed directly through the cluster CLI.</p>
+                            </div>
+                        </div>
+
+                        <div class="testing-grid">
+                            <div class="testing-method">
+                                <h3>Method A: Terminal Load Generator (Recommended)</h3>
+                                <p>Launch a temporary <code class="code-inline">busybox</code> load generator pod inside the cluster that generates high-concurrency HTTP queries to the service:</p>
+
+                                <div class="command-box">
+                                    <pre id="load-command">kubectl run -i --tty load-generator --rm --image=busybox:1.28 --restart=Never -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://gke-hpa-monitor-service; done"</pre>
+                                    <button class="btn-copy" id="btn-copy-command" aria-label="Copy command to clipboard">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                        <span id="copy-text">Copy Command</span>
+                                    </button>
+                                </div>
+
+                                <div class="step-guide">
+                                    <div class="step-item">
+                                        <span class="step-num">1</span>
+                                        <span class="step-desc">Run the command above in a separate terminal window.</span>
+                                    </div>
+                                    <div class="step-item">
+                                        <span class="step-num">2</span>
+                                        <span class="step-desc">Watch the HPA scale up: <code class="code-inline">kubectl get hpa gke-hpa-monitor-hpa --watch</code></span>
+                                    </div>
+                                    <div class="step-item">
+                                        <span class="step-num">3</span>
+                                        <span class="step-desc">Press <kbd>Ctrl+C</kbd> in the load-generator terminal to observe the cooldown scale-down.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="testing-method">
+                                <h3>Method B: Backend API Test Trigger</h3>
+                                <p>If you have deployed the optional in-cluster backend proxy service with role-based workload simulation:</p>
+
+                                <div class="backend-trigger-card">
+                                    <div class="input-row">
+                                        <label for="load-duration">Duration (Seconds):</label>
+                                        <input type="number" id="load-duration" value="60" min="10" max="300">
+                                    </div>
+                                    <div class="input-row">
+                                        <label for="load-intensity">Concurrent Requests:</label>
+                                        <input type="number" id="load-intensity" value="15" min="1" max="50">
+                                    </div>
+                                    <button class="btn-action" id="btn-trigger-api-test">
+                                        <span>Trigger In-Cluster Stress Test</span>
+                                    </button>
+                                    <div class="api-feedback-msg" id="api-test-feedback">
+                                        Status: Ready (Will probe POST /api/workload/generate-load)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 7: ARCHITECTURE SECTION -->
+                <section class="section-container" id="architecture">
+                    <div class="section-header">
+                        <h2>Cluster Architecture Diagram</h2>
+                        <span class="section-tag">Interactive structural breakdown of the Kubernetes autoscaling pipeline</span>
+                    </div>
+
+                    <div class="card arch-card">
+                        <div class="arch-flow">
+                            <!-- User Node -->
+                            <div class="arch-node" data-node="user">
+                                <div class="node-icon">👤</div>
+                                <div class="node-title">External User</div>
+                                <div class="node-subtitle">Web Browser / HTTP Client</div>
+                                <div class="node-badge">Client</div>
+                            </div>
+
+                            <div class="arch-arrow">
+                                <span>Port 80</span>
+                                <div class="arrow-line"></div>
+                            </div>
+
+                            <!-- Service Node -->
+                            <div class="arch-node" data-node="service">
+                                <div class="node-icon">🌐</div>
+                                <div class="node-title">Kubernetes Service</div>
+                                <div class="node-subtitle font-mono">gke-hpa-monitor-service</div>
+                                <div class="node-badge">LoadBalancer</div>
+                            </div>
+
+                            <div class="arch-arrow">
+                                <span>Distribute</span>
+                                <div class="arrow-line"></div>
+                            </div>
+
+                            <!-- Deployment Node -->
+                            <div class="arch-node active-node" data-node="deployment">
+                                <div class="node-icon">📋</div>
+                                <div class="node-title">Deployment</div>
+                                <div class="node-subtitle font-mono">gke-hpa-monitor</div>
+                                <div class="node-badge">2-10 Replicas</div>
+                            </div>
+
+                            <div class="arch-arrow">
+                                <span>Controls</span>
+                                <div class="arrow-line"></div>
+                            </div>
+
+                            <!-- Pods Node -->
+                            <div class="arch-node" data-node="pods">
+                                <div class="node-icon">📦</div>
+                                <div class="node-title">Replicated Pods</div>
+                                <div class="node-subtitle">NGINX Web Containers</div>
+                                <div class="node-badge">100m CPU Req</div>
+                            </div>
+                        </div>
+
+                        <!-- Feedback Loop Line for HPA & Metrics Server -->
+                        <div class="arch-control-plane">
+                            <div class="control-plane-header">
+                                <span class="control-plane-title">Autoscaling Control Loop (Kubernetes Control Plane)</span>
+                            </div>
+                            <div class="control-flow">
+                                <div class="arch-node-sub" data-node="metrics">
+                                    <div class="sub-icon">📊</div>
+                                    <div class="sub-text">
+                                        <strong>Metrics Server</strong>
+                                        <span>Collects CPU/Mem usage from kubelet cAdvisor</span>
+                                    </div>
+                                </div>
+                                <div class="arch-arrow-sub">
+                                    <span>Supplies Metrics</span>
+                                    <div class="arrow-line"></div>
+                                </div>
+                                <div class="arch-node-sub" data-node="hpa-ctrl">
+                                    <div class="sub-icon">⚡</div>
+                                    <div class="sub-text">
+                                        <strong>HPA Controller</strong>
+                                        <span>Calculates: DesiredReplicas = ceil[CurrentReplicas &times; (CurrentCPU / TargetCPU)]</span>
+                                    </div>
+                                </div>
+                                <div class="arch-arrow-sub">
+                                    <span>Scales Pods</span>
+                                    <div class="arrow-line"></div>
+                                </div>
+                                <div class="arch-node-sub" data-node="deployment-ctrl">
+                                    <div class="sub-icon">🔄</div>
+                                    <div class="sub-text">
+                                        <strong>Deployment Spec</strong>
+                                        <span>Updates <code class="code-inline">spec.replicas</code> between 2 and 10</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 8: DEPLOYMENT INFORMATION -->
+                <section class="section-container" id="deployment-info">
+                    <div class="section-header">
+                        <h2>Deployment Specifications & Manifest Inspection</h2>
+                        <span class="section-tag">Configured parameters in active Kubernetes resource manifests</span>
+                    </div>
+
+                    <div class="grid-3-col">
+                        <div class="card manifest-card">
+                            <div class="manifest-card-header">
+                                <span class="manifest-type">DEPLOYMENT</span>
+                                <span class="manifest-file">k8s/deployment.yaml</span>
+                            </div>
+                            <div class="spec-list">
+                                <div class="spec-row">
+                                    <span class="spec-label">Name</span>
+                                    <span class="spec-val font-mono">gke-hpa-monitor</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Image</span>
+                                    <span class="spec-val font-mono">gke-hpa-monitor-image:latest</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Container Port</span>
+                                    <span class="spec-val font-mono">80 (HTTP)</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">CPU Request / Limit</span>
+                                    <span class="spec-val font-mono">100m / 250m</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Memory Req / Limit</span>
+                                    <span class="spec-val font-mono">128Mi / 256Mi</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Probes</span>
+                                    <span class="spec-val font-mono">Liveness & Readiness /</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card manifest-card">
+                            <div class="manifest-card-header">
+                                <span class="manifest-type">SERVICE</span>
+                                <span class="manifest-file">k8s/service.yaml</span>
+                            </div>
+                            <div class="spec-list">
+                                <div class="spec-row">
+                                    <span class="spec-label">Name</span>
+                                    <span class="spec-val font-mono">gke-hpa-monitor-service</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Type</span>
+                                    <span class="spec-val font-mono">LoadBalancer</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Service Port</span>
+                                    <span class="spec-val font-mono">80</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Target Port</span>
+                                    <span class="spec-val font-mono">80</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Selector</span>
+                                    <span class="spec-val font-mono">app: gke-hpa-monitor</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Protocol</span>
+                                    <span class="spec-val font-mono">TCP</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card manifest-card">
+                            <div class="manifest-card-header">
+                                <span class="manifest-type">HPA</span>
+                                <span class="manifest-file">k8s/hpa.yaml</span>
+                            </div>
+                            <div class="spec-list">
+                                <div class="spec-row">
+                                    <span class="spec-label">Name</span>
+                                    <span class="spec-val font-mono">gke-hpa-monitor-hpa</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">API Version</span>
+                                    <span class="spec-val font-mono">autoscaling/v2</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Target Deployment</span>
+                                    <span class="spec-val font-mono">gke-hpa-monitor</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Min Replicas</span>
+                                    <span class="spec-val font-bold">2</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Max Replicas</span>
+                                    <span class="spec-val font-bold">10</span>
+                                </div>
+                                <div class="spec-row">
+                                    <span class="spec-label">Target Metric</span>
+                                    <span class="spec-val font-mono text-accent">CPU avgUtilization: 50%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 9: CORE CONCEPTS OVERVIEW (Preserved & Enhanced) -->
+                <section class="section-container" id="concepts">
+                    <div class="section-header">
+                        <h2>Core Cloud & Kubernetes Concepts</h2>
+                        <span class="section-tag">Academic explanations of cluster management and auto-scaling mechanics</span>
+                    </div>
+
+                    <div class="card explanation-card">
+                        <div class="concepts-grid">
+                            <div class="concept-item">
+                                <div class="concept-icon">☁️</div>
+                                <h3>Google Kubernetes Engine (GKE)</h3>
+                                <p>GKE is a managed, production-ready environment for deploying containerized applications. It brings Google's latest innovations in developer productivity, resource efficiency, automated operations, and open source flexibility to accelerate time to market, handling control-plane provisioning, node upgrades, and health repair automatically.</p>
+                            </div>
+                            <div class="concept-item">
+                                <div class="concept-icon">📦</div>
+                                <h3>Kubernetes Pods</h3>
+                                <p>Pods are the smallest deployable units of computing that you can create and manage in Kubernetes. A Pod encapsulates one or more application containers, shared storage volumes, and network specifications (including unique IP addressing and port bindings).</p>
+                            </div>
+                            <div class="concept-item">
+                                <div class="concept-icon">⚡</div>
+                                <h3>Horizontal Pod Autoscaler (HPA)</h3>
+                                <p>HPA automatically scales the number of Pod replicas in a deployment based on observed metrics like CPU utilization or custom metrics. It queries the Metrics Server periodically and computes the required pod count using the formula: <code class="code-inline">Desired = ceil[Current &times; (CurrentUtilization / TargetUtilization)]</code>.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Dashboard Footer -->
+            <footer class="dashboard-footer">
+                <div class="footer-left">
+                    <span>GKE Cluster with Horizontal Pod Autoscaling Project</span>
+                    <span class="footer-sep">•</span>
+                    <span>College Cloud Computing Project</span>
+                </div>
+                <div class="footer-right">
+                    <span>NGINX Static Frontend + Kubernetes autoscaling/v2</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Script loading -->
+    <script src="script.js"></script>
+</body>
+</html>
